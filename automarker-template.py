@@ -31,6 +31,10 @@ def make_request(url, method="get", params=None, data=None):
     raise Exception(f"Request for '{url}' failed with status code {res.status_code}")
 
 
+# ^ Helpers ^ ==========================================================================================
+# You should not need to modify the above functions.
+
+
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
         self.marks = marks

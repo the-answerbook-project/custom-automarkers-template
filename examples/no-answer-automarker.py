@@ -37,6 +37,10 @@ def make_request(url, method="get", params=None, data=None):
     )
 
 
+# ^ Helpers ^ ==========================================================================================
+# You should not need to modify the above functions.
+
+
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
         self.marks = marks
