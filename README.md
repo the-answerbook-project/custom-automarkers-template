@@ -1,4 +1,4 @@
-# What's this repository about
+# What'sEcco this repository about
 
 This repository contains a template and useful examples for creating custom automarkers for your Answerbook exams,
 leveraging the Answerbook API. Each script in the `examples` folder is an exact copy of `automarker-template.py` except for
@@ -11,6 +11,7 @@ In summary, each automarker implements the same overall algorithm:
 4. calls `Automarker.run()` to compute the appropriate mark (suitably commented)
 5. issues a POST request against the API to save the mark
 
+**Each call to the `run()` method targets the marking of a specific section of the exam for a specific student.**
 
 # How to use this repository
 
@@ -24,7 +25,17 @@ pip install -r requirements.txt
 You can then implement your marker starting from `automarker-template.py` and replacing the body of the `run()` method within the `Automarker` class
 with your own custom code.
 
-**Each call to the `run()` method targets the marking of a specific section of the exam for a specific student.**
+Every automarker script is invoked with one mandatory argument: the root URL of the exam's API. For the 2023-2024 60005 exam, for example, invoking the `no-answer-automarker.py` looks like:
+
+```shell
+python no-answer-automarker.py https://answerbook.doc.ic.ac.uk/2023/60005/exam/api
+```
+
+To run automarkers (e.g. the `no-answer-automarker`) locally against an instance of the API running in local host, the above currently becomes:
+
+```shell
+python no-answer-automarker.py http://localhost:8000
+```
 
 ## The `run()` method contract
 

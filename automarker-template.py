@@ -51,7 +51,7 @@ class Automarker:
 def main(
     root_url: str = typer.Argument(
         ...,
-        help="Root URL of your answerbook exam e.g. http://answerbook.doc.ic.ac.uk/2024/60005/exam",
+        help="Root URL of your answerbook exam e.g. http://answerbook.doc.ic.ac.uk/2023/60005/exam/api",
     ),
 ):
     questions = make_request(root_url + questions_url)
