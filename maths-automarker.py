@@ -37,7 +37,7 @@ def make_request(url, method="get", params=None, data=None):
 # You should not need to modify the above functions.
 
 
-model_answer = "2x"
+model_answer = "x + x"
 
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
@@ -55,6 +55,8 @@ class Automarker:
                     if answer:
                         expr1 = parse_latex(answer)
                         expr2 = parse_latex(model_answer)
+                                                
+                        
                         if (simplify(expr1 - expr2) == 0):
                             mark = max_mark
                         
