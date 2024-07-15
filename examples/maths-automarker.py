@@ -2,7 +2,7 @@ import json
 from operator import itemgetter
 from typing import TypedDict
 from sympy.parsing.latex import parse_latex
-from sympy import simplify
+from sympy import simplify, Integral
 
 import requests
 import typer
@@ -37,7 +37,7 @@ def make_request(url, method="get", params=None, data=None):
 # You should not need to modify the above functions.
 
 
-model_answer = "x + x"
+model_answer = r"\frac{\pi}{2} \tanh \frac{\pi}{2}"
 
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
@@ -48,21 +48,22 @@ class Automarker:
         if self.marks.get(section_id) is None:
             mark = 0
             for t, task in enumerate(tasks, 1):
-                # type should be MATHS_ANSWER eventually
-                if task["type"].startswith("ESSAY"):
+                if task["type"].startswith("MATHS_SINGLE_ANSWER"):
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
                     if answer:
                         expr1 = parse_latex(answer)
                         expr2 = parse_latex(model_answer)
-                                                
-                        
-                        if (simplify(expr1 - expr2) == 0):
+
+                        feedback = "Awarded designated marks for answer."
+                        if (expr1.has(Integral)):
+                            feedback = "Solution should not contain an integral"
+                        elif (simplify(expr1 - expr2) == 0):
                             mark = max_mark
                         
                         return {
                             "mark": mark,
-                            "feedback": "Awarded designated marks for answer.",
+                            "feedback": feedback,
                         }
         return None
 
