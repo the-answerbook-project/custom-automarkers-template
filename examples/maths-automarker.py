@@ -37,6 +37,13 @@ def make_request(url, method="get", params=None, data=None):
 # You should not need to modify the above functions.
 
 
+
+maths_single_answer_marks = {
+    "1-3-1-1": { "answer": "x^3/3 + c", "mark": 20},
+    "1-3-1-2": { "answer": "2x", "mark": 10},
+}
+
+
 model_answer = r"\frac{\pi}{2} \tanh \frac{\pi}{2}"
 
 class Automarker:
@@ -47,24 +54,34 @@ class Automarker:
     def run(self, username: str, section_id: str, max_mark: int, tasks: list[dict]):
         if self.marks.get(section_id) is None:
             mark = 0
+            has_maths_answer = False
+
             for t, task in enumerate(tasks, 1):
                 if task["type"].startswith("MATHS_SINGLE_ANSWER"):
+                    has_maths_answer = True
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
-                    if answer:
+                    task_mark_and_answer = maths_single_answer_marks[task_id]
+                    answer = self.answers.get(task_id, {}).get("answer")
+                    if task_mark_and_answer and answer:
                         expr1 = parse_latex(answer)
-                        expr2 = parse_latex(model_answer)
+                        expr2 = parse_latex(task_mark_and_answer["answer"])
 
                         feedback = "Awarded designated marks for answer."
                         if (expr1.has(Integral)):
                             feedback = "Solution should not contain an integral"
                         elif (simplify(expr1 - expr2) == 0):
-                            mark = max_mark
-                        
-                        return {
-                            "mark": mark,
-                            "feedback": feedback,
-                        }
+                            mark += task_mark_and_answer["mark"]
+                            
+            if has_maths_answer:
+                mark = max(0, mark)
+                mark = min(max_mark, mark)
+                return {
+                    "mark": mark,
+                    "feedback": feedback,
+                }
+
+
         return None
 
 
