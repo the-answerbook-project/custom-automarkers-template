@@ -36,10 +36,23 @@ def make_request(url, method="get", params=None, data=None):
 # ^ Helpers ^ ==========================================================================================
 # You should not need to modify the above functions.
 
-
+# Example of a question structure
+# instructions: |
+#       Calculus questions
+#     i:
+#       instructions: |
+#         Consider the function $x^2$.
+#       maximum mark: 30
+#       tasks:
+#       - instructions: |
+#           Enter the integral.
+#         type: maths single answer
+#       - instructions: |
+#           Enter the derivative.
+#         type: maths single answer
 
 maths_single_answer_marks = {
-    "1-3-1-1": { "answer": "x^3/3 + c", "mark": 20},
+    "1-3-1-1": { "answer": "x^3/3 + C", "mark": 20},
     "1-3-1-2": { "answer": "2x", "mark": 10},
 }
 
@@ -62,7 +75,7 @@ class Automarker:
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
                     task_mark_and_answer = maths_single_answer_marks[task_id]
-                    answer = self.answers.get(task_id, {}).get("answer")
+                    answer = json.loads(self.answers.get(task_id, {}).get("answer"))["latex"]
                     if task_mark_and_answer and answer:
                         expr1 = parse_latex(answer)
                         expr2 = parse_latex(task_mark_and_answer["answer"])
