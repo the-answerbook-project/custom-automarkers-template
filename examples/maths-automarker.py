@@ -2,10 +2,38 @@ import json
 from operator import itemgetter
 from typing import TypedDict
 from sympy.parsing.latex import parse_latex
-from sympy import simplify, Integral
+from sympy import Derivative, simplify, Integral
 
 import requests
 import typer
+
+# PROCESSED HANDWRITING AUTOMARKER
+# Award a compound mark to 'processed handwriting' questions.
+# The compound mark is calculated according to the option->partial_mark
+# mapping indicated under the 'answer' field of each task.
+# Only record a mark for a section if:
+#     - no mark exists for it yet AND
+#     - an answer has been entered and saved by the candidate
+#
+# Example 1: Section (i) is awarded full marks for the first task if the candidate enters an expression 
+# semantically equivalent to (x^3)/3 + c. Full marks are awarded for the second task if the candidate enters
+# an expression semantically equivalent to 2x (for example x + x, x * 2 etc. would be valid solutions).
+# Marks are not awarded for a task if the student enters an unsimplified integral. (this handles 
+# students entering the question as the answer). Other mathematical features can similarly be detected. 
+# ----------------------------------
+# ...
+# i:
+#     maximum mark: 30
+#     ...
+#       tasks:
+#       - instructions: |
+#           Enter the integral of $x^2$.
+#         type: processed handwriting
+#       - instructions: |
+#           Enter the derivative of $x^2$.
+#         type: processed handwriting
+#
+# ------------------------------------
 
 
 class MarkPayload(TypedDict):
@@ -36,22 +64,7 @@ def make_request(url, method="get", params=None, data=None):
 # ^ Helpers ^ ==========================================================================================
 # You should not need to modify the above functions.
 
-# Example of a question structure
-# instructions: |
-#       Calculus questions
-#     i:
-#       instructions: |
-#         Consider the function $x^2$.
-#       maximum mark: 30
-#       tasks:
-#       - instructions: |
-#           Enter the integral.
-#         type: maths single answer
-#       - instructions: |
-#           Enter the derivative.
-#         type: maths single answer
-
-maths_single_answer_marks = {
+processed_handwriting_mark_scheme = {
     "1-3-1-1": { "answer": "x^3/3 + C", "mark": 20},
     "1-3-1-2": { "answer": "2x", "mark": 10},
 }
@@ -69,20 +82,20 @@ class Automarker:
             mark = 0
             has_maths_answer = False
 
+            feedback = "Awarded designated marks for answer."
             for t, task in enumerate(tasks, 1):
                 if task["type"].startswith("MATHS_SINGLE_ANSWER"):
                     has_maths_answer = True
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
-                    task_mark_and_answer = maths_single_answer_marks[task_id]
+                    task_mark_and_answer = processed_handwriting_mark_scheme[task_id]
                     answer = json.loads(self.answers.get(task_id, {}).get("answer"))["latex"]
                     if task_mark_and_answer and answer:
                         expr1 = parse_latex(answer)
                         expr2 = parse_latex(task_mark_and_answer["answer"])
 
-                        feedback = "Awarded designated marks for answer."
                         if (expr1.has(Integral)):
-                            feedback = "Solution should not contain an integral"
+                            feedback = "Solution should not contain an unsimplified integral"
                         elif (simplify(expr1 - expr2) == 0):
                             mark += task_mark_and_answer["mark"]
                             
