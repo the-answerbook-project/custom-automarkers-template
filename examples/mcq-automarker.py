@@ -8,8 +8,7 @@ import typer
 # MULTIPLE CHOICE QUESTIONS AUTOMARKER
 # Award a compound mark to multichoice questions.
 # The compound mark is calculated according to the option->partial_mark
-# mapping indicated under the 'answer' field of each task. If such a mapping
-# is not specified for an option, that option is associated by default to 0.
+# mapping defined by the 'mcq_mark_scheme' variable.
 # A negative total is rounded up to 0, and a total higher than the section's maximum mark gets capped at that.
 # Only record a mark for a section if:
 #     - no mark exists for it yet AND
@@ -81,7 +80,7 @@ def make_request(url, method="get", params=None, data=None):
 # ^ Helpers ^ ==========================================================================================
 # You should not need to modify the above functions.
 
-marks_to_mcq_options = {
+mcq_mark_scheme = {
     "1-1-1-1": {"c": 20, "d": 5},
     "1-2-1-1": {"a": 50},
 }
@@ -101,7 +100,7 @@ class Automarker:
                     section_has_mcq = True
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
-                    option_mark_table = marks_to_mcq_options[task_id]
+                    option_mark_table = mcq_mark_scheme[task_id]
                     if option_mark_table and answer:
                         has_answer = True
                         choices = set(answer.split(","))
