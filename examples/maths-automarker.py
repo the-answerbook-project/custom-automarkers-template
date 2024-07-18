@@ -1,25 +1,26 @@
 import json
 from operator import itemgetter
 from typing import TypedDict
-from sympy.parsing.latex import parse_latex
-from sympy import Derivative, simplify, Integral
 
 import requests
 import typer
+from sympy import Derivative, Integral, simplify
+from sympy.parsing.latex import parse_latex
 
 # PROCESSED HANDWRITING AUTOMARKER
 # Award a compound mark to 'processed handwriting' questions.
 # The compound mark is calculated according to the option->partial_mark
-# mapping indicated under the 'answer' field of each task.
+# mapping defined by the 'processed_handwriting_mark_scheme' variable below.
 # Only record a mark for a section if:
 #     - no mark exists for it yet AND
 #     - an answer has been entered and saved by the candidate
 #
-# Example 1: Section (i) is awarded full marks for the first task if the candidate enters an expression 
+# Example 1: Section (i) is awarded full marks for the first task if the candidate enters an expression
 # semantically equivalent to (x^3)/3 + c. Full marks are awarded for the second task if the candidate enters
 # an expression semantically equivalent to 2x (for example x + x, x * 2 etc. would be valid solutions).
-# Marks are not awarded for a task if the student enters an unsimplified integral. (this handles 
-# students entering the question as the answer). Other mathematical features can similarly be detected. 
+# In this example, we also explicitly assign 0 marks for answers to task 1-3-1-1 consisting of a plain unsolved integral (which would otherwise be
+# considered mathematically equivalent to the sample answer). This is by way of showing how to catch nasty corner cases.
+#
 # ----------------------------------
 # ...
 # i:
@@ -65,12 +66,22 @@ def make_request(url, method="get", params=None, data=None):
 # You should not need to modify the above functions.
 
 processed_handwriting_mark_scheme = {
-    "1-3-1-1": { "answer": "x^3/3 + C", "mark": 20},
-    "1-3-1-2": { "answer": "2x", "mark": 10},
+    "1-3-1-1": {
+        "answer": "x^3/3 + C",
+        "mark": 20,
+        "corner_cases": [
+            {
+                "check": lambda a: a.has(Integral),
+                "feedback": "- Solution should not contain unsolved integral",
+            }
+        ],
+    },
+    "1-3-1-2": {"answer": "2x", "mark": 10},
 }
 
 
 model_answer = r"\frac{\pi}{2} \tanh \frac{\pi}{2}"
+
 
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
@@ -80,33 +91,36 @@ class Automarker:
     def run(self, username: str, section_id: str, max_mark: int, tasks: list[dict]):
         if self.marks.get(section_id) is None:
             mark = 0
-            has_maths_answer = False
-
-            feedback = "Awarded designated marks for answer."
+            has_maths_task, has_answer = False, False
+            feedback = ["- Awarded designated marks for answer."]
             for t, task in enumerate(tasks, 1):
-                if task["type"].startswith("MATHS_SINGLE_ANSWER"):
-                    has_maths_answer = True
+                if task["type"] == "PROCESSED_HANDWRITING":
+                    matched_corner_case = False
+                    has_maths_task = True
                     task_id = lookup_key(section_id, t)
                     answer = self.answers.get(task_id, {}).get("answer")
-                    task_mark_and_answer = processed_handwriting_mark_scheme[task_id]
-                    answer = json.loads(self.answers.get(task_id, {}).get("answer"))["latex"]
-                    if task_mark_and_answer and answer:
-                        expr1 = parse_latex(answer)
-                        expr2 = parse_latex(task_mark_and_answer["answer"])
+                    task_mark_scheme = processed_handwriting_mark_scheme.get(task_id)
+                    raw_answer = self.answers.get(task_id, {}).get("answer")
+                    answer = json.loads(raw_answer).get("latex") if raw_answer else None
+                    if task_mark_scheme and answer:
+                        has_answer = True
+                        given_answer = parse_latex(answer)
+                        sample_answer = parse_latex(task_mark_scheme["answer"])
+                        for corner_case in task_mark_scheme.get("corner_cases", []):
+                            if corner_case["check"](given_answer):
+                                matched_corner_case = True
+                                feedback.append(corner_case["feedback"])
+                        if not matched_corner_case:
+                            if simplify(given_answer - sample_answer) == 0:
+                                mark += task_mark_scheme["mark"]
 
-                        if (expr1.has(Integral)):
-                            feedback = "Solution should not contain an unsimplified integral"
-                        elif (simplify(expr1 - expr2) == 0):
-                            mark += task_mark_and_answer["mark"]
-                            
-            if has_maths_answer:
+            if has_maths_task and has_answer:
                 mark = max(0, mark)
                 mark = min(max_mark, mark)
                 return {
                     "mark": mark,
-                    "feedback": feedback,
+                    "feedback": "\n".join(feedback),
                 }
-
 
         return None
 
