@@ -95,7 +95,7 @@ class Automarker:
     def run(self, username: str, section_id: str, max_mark: int, tasks: list[dict]):
         if self.marks.get(section_id) is None:
             total_section_mark = 0
-            section_has_mcq = False
+            section_has_mcq, has_answer = False, False
             for t, task in enumerate(tasks, 1):
                 if task["type"].startswith("MULTIPLE_CHOICE"):
                     section_has_mcq = True
@@ -103,12 +103,13 @@ class Automarker:
                     answer = self.answers.get(task_id, {}).get("answer")
                     option_mark_table = marks_to_mcq_options[task_id]
                     if option_mark_table and answer:
+                        has_answer = True
                         choices = set(answer.split(","))
                         mark_for_task = sum(
                             option_mark_table.get(choice, 0) for choice in choices
                         )
                         total_section_mark += mark_for_task
-            if section_has_mcq:
+            if section_has_mcq and has_answer:
                 mark = max(0, total_section_mark)
                 mark = min(max_mark, mark)
                 return {
