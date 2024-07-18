@@ -80,9 +80,6 @@ processed_handwriting_mark_scheme = {
 }
 
 
-model_answer = r"\frac{\pi}{2} \tanh \frac{\pi}{2}"
-
-
 class Automarker:
     def __init__(self, marks: dict[str, dict], answers: dict[str, dict]):
         self.marks = marks
