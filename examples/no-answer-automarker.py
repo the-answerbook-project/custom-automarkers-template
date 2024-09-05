@@ -49,7 +49,7 @@ class Automarker:
     def run(self, username: str, section_id: str, max_mark: int, tasks: list[dict]):
         if self.marks.get(section_id) is None:
             if all(
-                self.answers.get(lookup_key(section_id, t+1)) is None
+                self.answers.get(lookup_key(section_id, t + 1)) is None
                 for t in range(len(tasks))
             ):
                 return {"mark": 0, "feedback": "No answer submitted"}
