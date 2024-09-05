@@ -1,4 +1,4 @@
-# What'sEcco this repository about
+# What's this repository about
 
 This repository contains a template and useful examples for creating custom automarkers for your Answerbook exams,
 leveraging the Answerbook API. Each script in the `examples` folder is an exact copy of `automarker-template.py` except for
@@ -22,19 +22,27 @@ python3 -m venv venv
 pip install -r requirements.txt
 ```
 
-You can then implement your marker starting from `automarker-template.py` and replacing the body of the `run()` method within the `Automarker` class
-with your own custom code.
-
-Every automarker script is invoked with one mandatory argument: the root URL of the exam's API. For the 2023-2024 60005 exam, for example, invoking the `no-answer-automarker.py` looks like:
+The preamble of every script (within `main()`) makes requests to the Answerbook API to fetch students, questions, answers and existing marks for the specified assessment.
+Authentication happens via your Answerbook credentials, which need be entered as env vars in a dedicated `.env` file. You can generate the `.env` file from the template you find
+in this repository, and update it with your credentials.
 
 ```shell
-python no-answer-automarker.py https://answerbook.doc.ic.ac.uk/2023/60005/exam/api
+cp .env.template .env
+```
+
+For our local dev environment, we can use `adumble` as username and `pass` as password.
+
+You can then implement your marker starting from `automarker-template.py` and replacing the body of the `run()` method within the `Automarker` class
+with your own custom code. Every automarker script is invoked with one mandatory argument: the root URL of Answerbook API for the assessment. For the 2023-2024 12345 exam, for example, invoking the `no-answer-automarker.py` looks like:
+
+```shell
+python examples/no-answer-automarker.py https://answerbook-api.doc.ic.ac.uk/y2023_12345_exam
 ```
 
 To run automarkers (e.g. the `no-answer-automarker`) locally against an instance of the API running in local host, the above currently becomes:
 
 ```shell
-python no-answer-automarker.py http://localhost:8000
+python examples/no-answer-automarker.py http://localhost:5004/y2023_12345_exam
 ```
 
 ## The `run()` method contract
