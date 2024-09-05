@@ -1,9 +1,12 @@
 import json
+import os
+from collections import defaultdict
 from operator import itemgetter
 from typing import TypedDict
 
 import requests
 import typer
+from dotenv import load_dotenv
 
 # MULTIPLE CHOICE QUESTIONS AUTOMARKER
 # Award a compound mark to multichoice questions.
@@ -55,21 +58,37 @@ class MarkPayload(TypedDict):
     feedback: str
 
 
+token_url = "/auth/login"
 students_url = "/students"
 questions_url = "/questions"
+answers_url = "/answers"
+marks_url = "/marks"
 
 
 def lookup_key(*tokens):
     return "-".join(map(str, tokens))
 
 
-def build_lookup_table(items):
+def build_outer_lookup_table(items):
+    table = defaultdict(list)
+    for item in items:
+        table[item["username"]].append(item)
+    return table
+
+
+def build_inner_lookup_table(items):
     keys = lambda i: [k for k in ["question", "part", "section", "task"] if k in i]
     return {lookup_key(*itemgetter(*keys(i))(i)): i for i in items}
 
 
-def make_request(url, method="get", params=None, data=None):
-    res = getattr(requests, method)(url, params=params, data=data)
+def get_token(url) -> str:
+    creds = {"username": os.getenv("API_USER"), "password": os.getenv("API_PASSWORD")}
+    return make_request(url + token_url, method="post", data=creds)["access_token"]
+
+
+def make_request(url, method="get", params=None, data=None, access_token=None):
+    headers = {"Authorization": f"Bearer {access_token}"} if access_token else None
+    res = getattr(requests, method)(url, params=params, data=data, headers=headers)
     if res.status_code == requests.codes.ok:
         return res.json()
     raise Exception(
@@ -81,8 +100,8 @@ def make_request(url, method="get", params=None, data=None):
 # You should not need to modify the above functions.
 
 mcq_mark_scheme = {
-    "1-1-1-1": {"c": 20, "d": 5},
-    "1-2-1-1": {"a": 50},
+    "1-1-1-1": {"a": 2, "d": 2},
+    "1-1-1-2": {"a": 4},
 }
 
 
@@ -121,22 +140,31 @@ class Automarker:
 def main(
     root_url: str = typer.Argument(
         ...,
-        help="Root URL of your answerbook exam e.g. http://answerbook.doc.ic.ac.uk/2023/60005/exam/api",
+        help="Root API URL of your answerbook exam e.g. http://answerbook-api.doc.ic.ac.uk/y2023_12345_exam",
     ),
 ):
-    questions = make_request(root_url + questions_url)
-    students = make_request(root_url + students_url)
+    load_dotenv()
+
+    token = get_token(root_url)
+    questions = make_request(root_url + questions_url, access_token=token)
+    students = make_request(root_url + students_url, access_token=token)
+
+    # Build lookup tables to find if
+    # a mark already exists for the given student and a given question-part-section combination;
+    # an answer exists for the given student and a given question-part-section-task combination
+    answers = make_request(root_url + answers_url, access_token=token)
+    answers_lookup = build_outer_lookup_table(answers)
+    answers_lookup = {
+        k: build_inner_lookup_table(vs) for k, vs in answers_lookup.items()
+    }
+
+    marks = make_request(root_url + answers_url, access_token=token)
+    marks_lookup = build_outer_lookup_table(marks)
+    marks_lookup = {k: build_inner_lookup_table(vs) for k, vs in marks_lookup.items()}
+
     for student in students:
         username = student["username"]
-        marks_url = root_url + f"/{username}/marks"
-
-        # Build lookup tables to find if
-        # a mark already exists for the given student and a given question-part-section combination;
-        # an answer exists for the given student and a given question-part-section-task combination
-        mark_lookup = build_lookup_table(make_request(marks_url))
-        ans_lookup = build_lookup_table(make_request(root_url + f"/{username}/answers"))
-        automarker = Automarker(mark_lookup, ans_lookup)
-
+        automarker = Automarker(marks_lookup[username], answers_lookup[username])
         for q, question in questions.items():
             for p, parts in question["parts"].items():
                 for s, section in parts["sections"].items():
@@ -155,10 +183,16 @@ def main(
                             "question": q,
                             "part": p,
                             "section": s,
+                            "username": username,
                         }
 
                         try:
-                            make_request(marks_url, "post", data=json.dumps(payload))
+                            make_request(
+                                root_url + marks_url,
+                                "post",
+                                data=json.dumps(payload),
+                                access_token=token,
+                            )
                             print(f"mark saved for {username} on {section_id}")
                         except Exception:
                             print(f"mark not saved for {username} on {section_id}")
